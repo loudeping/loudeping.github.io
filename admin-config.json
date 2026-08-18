@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "salt": "03a014b7a15bd862",
+  "hash": "aa3a1e97fe7e88696d6364a5264dfe7773f1cdbb2d2a6bdfc93a976b9405a003",
+  "note": "password hash with salt, do not expose plaintext"
+}
