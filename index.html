@@ -544,6 +544,8 @@
     <span class="en">"I will shout the sun out." — Lou Deping</span>
     <span class="zh">“我要把太阳喊出来。”——娄德平</span>
   </p>
+  <p style="margin-top:14px;font-size:11px;letter-spacing:.2em;opacity:.6">v2.0</p>
+  <p style="margin-top:6px"><a href="#" id="adminLink" style="font-size:12px;color:var(--ink-soft);text-decoration:underline;letter-spacing:.1em;opacity:.7">管理员 Admin</a></p>
 </footer>
 
 <script>
@@ -571,6 +573,470 @@
         : '娄德平 · Lou Deping — 诗人 · 书法家 · 文化使者';
     }
   })();
+</script>
+
+<style>
+  /* ============ Admin Visual Editor UI ============ */
+  .admin-modal{ position:fixed; inset:0; z-index:1000; background:rgba(28,26,23,.55); display:flex; align-items:center; justify-content:center; padding:18px; }
+  .admin-modal[hidden]{ display:none; }
+  .admin-modal-box{ background:#fbf8f1; border-radius:14px; max-width:440px; width:100%; padding:26px 26px 22px; box-shadow:0 20px 60px rgba(0,0,0,.35); max-height:88vh; overflow:auto; }
+  .admin-modal-head{ display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:12px; }
+  .admin-modal-head span{ font-size:17px; letter-spacing:.15em; font-weight:700; }
+  .admin-modal-close{ background:transparent !important; color:var(--ink) !important; font-size:20px; padding:0 6px !important; margin:0 !important; line-height:1; }
+  .admin-modal input[type="password"], .admin-modal input[type="text"]{ width:100%; margin:8px 0; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:#fff; font-family:inherit; font-size:14px; color:var(--ink); box-sizing:border-box; }
+  .admin-modal button{ font-family:inherit; font-size:14px; cursor:pointer; border:none; border-radius:8px; padding:9px 18px; margin:6px 6px 0 0; background:var(--ink); color:#f6f1e7; letter-spacing:1px; }
+  .admin-modal button.admin-primary{ background:var(--vermilion); }
+  .admin-modal button.admin-ghost{ background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .admin-field{ margin-top:16px; border-top:1px solid var(--line); padding-top:14px; }
+  .admin-field label{ display:block; font-size:13px; color:var(--ink-soft); margin-bottom:2px; letter-spacing:.05em; }
+  .admin-tip{ font-size:12px; color:var(--ink-soft); margin-top:6px; }
+  .admin-token-note{ font-size:12px; color:var(--ink-soft); margin-top:4px; }
+
+  .admin-toolbar{ position:fixed; right:18px; bottom:18px; z-index:1100; display:flex; gap:8px; background:#262220; padding:10px 14px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); flex-wrap:wrap; max-width:calc(100vw - 36px); }
+  .admin-toolbar[hidden]{ display:none; }
+  .admin-toolbar button{ font-family:inherit; font-size:13px; color:#f6f1e7; background:transparent; border:1px solid rgba(246,241,231,.4); border-radius:8px; padding:8px 14px; cursor:pointer; letter-spacing:1px; }
+  .admin-toolbar button:hover{ background:var(--vermilion); border-color:var(--vermilion); }
+  .admin-toolbar button:disabled{ opacity:.4; cursor:not-allowed; }
+
+  body.admin-editing [contenteditable="true"]:hover{ outline:1px dashed rgba(166,59,43,.45); outline-offset:2px; cursor:text; }
+  body.admin-editing [contenteditable="true"]:focus{ outline:2px solid var(--vermilion); background:rgba(166,59,43,.05); }
+  .admin-draggable{ position:relative; }
+  .admin-handle{ position:absolute; top:8px; right:8px; width:26px; height:26px; background:var(--vermilion); color:#fff; font-size:13px; cursor:move; display:flex; align-items:center; justify-content:center; border-radius:6px; z-index:999; opacity:.92; box-shadow:0 2px 8px rgba(0,0,0,.25); user-select:none; line-height:1; }
+  .admin-handle:hover{ opacity:1; transform:scale(1.08); }
+  .admin-selected{ outline:2px dashed var(--vermilion) !important; outline-offset:3px; }
+  .admin-resize{ position:absolute; right:-7px; bottom:-7px; width:18px; height:18px; background:var(--vermilion); color:#fff; font-size:11px; line-height:18px; text-align:center; cursor:nwse-resize; border-radius:3px; z-index:1000; user-select:none; box-shadow:0 2px 6px rgba(0,0,0,.28); }
+  body.admin-editing img.admin-img{ height:auto !important; object-fit:contain; cursor:pointer; }
+  .admin-status{ position:fixed; left:18px; bottom:18px; z-index:1100; background:rgba(38,34,32,.85); color:#f6f1e7; font-size:12px; letter-spacing:.1em; padding:8px 14px; border-radius:8px; }
+</style>
+
+<script>
+/* ============ Admin Visual Editor (v2.0) ============ */
+(function(){
+  'use strict';
+  var LS_HASH = 'lou_admin_hash';
+  var LS_TOKEN = 'lou_admin_token';
+  var SS_AUTH = 'lou_admin_authed';
+
+  /* ---------- SHA-256 (pure JS, works on file://) ---------- */
+  function sha256(ascii){
+    function rightRotate(v,a){ return (v>>>a)|(v<<(32-a)); }
+    var maxWord = Math.pow(2,32), result = '', words = [], i, j;
+    var asciiBitLength = ascii.length * 8;
+    var hash = (sha256.h = sha256.h || []);
+    var k = (sha256.k = sha256.k || []);
+    var primeCounter = k.length;
+    var isComposite = {};
+    for (var candidate = 2; primeCounter < 64; candidate++) {
+      if (!isComposite[candidate]) {
+        for (i = 0; i < 313; i += candidate) { isComposite[i] = candidate; }
+        hash[primeCounter] = (Math.pow(candidate, 0.5) * maxWord) | 0;
+        k[primeCounter++] = (Math.pow(candidate, 1 / 3) * maxWord) | 0;
+      }
+    }
+    ascii += '\x80';
+    while (ascii.length % 64 - 56) { ascii += '\x00'; }
+    for (i = 0; i < ascii.length; i++) {
+      j = ascii.charCodeAt(i);
+      if (j >> 8) { return ''; }
+      words[i >> 2] |= j << (((3 - i) % 4) * 8);
+    }
+    words[words.length] = ((asciiBitLength / maxWord) | 0);
+    words[words.length] = (asciiBitLength);
+    for (j = 0; j < words.length;) {
+      var w = words.slice(j, j += 16);
+      var oldHash = hash.slice(0, 8);
+      for (i = 0; i < 64; i++) {
+        var w15 = w[i-15], w2 = w[i-2];
+        var a = hash[0], e = hash[4];
+        var temp1 = hash[7]
+          + (rightRotate(e,6) ^ rightRotate(e,11) ^ rightRotate(e,25))
+          + ((e & hash[5]) ^ ((~e) & hash[6]))
+          + k[i]
+          + (w[i] = (i < 16) ? w[i] : (
+              w[i-16]
+              + (rightRotate(w15,7) ^ rightRotate(w15,18) ^ (w15>>>3))
+              + w[i-7]
+              + (rightRotate(w2,17) ^ rightRotate(w2,19) ^ (w2>>>10))
+            ) | 0);
+        var temp2 = (rightRotate(a,2) ^ rightRotate(a,13) ^ rightRotate(a,22))
+          + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+        hash = [(temp1 + temp2) | 0].concat(hash);
+        hash[4] = (hash[4] + temp1) | 0;
+      }
+      for (i = 0; i < 8; i++) { hash[i] = (hash[i] + oldHash[i]) | 0; }
+    }
+    for (i = 0; i < 8; i++) {
+      for (j = 3; j + 1; j--) {
+        var b = (hash[i] >> (j * 8)) & 255;
+        result += ((b < 16) ? 0 : '') + b.toString(16);
+      }
+    }
+    return result;
+  }
+  function sha256Hex(str){ return sha256(encodeURIComponent(str)); }
+
+  var editing = false;
+  var modal, toolbar, resetBtn, statusEl;
+  var pwdInput, loginBtn, loginView, manageView;
+  var oldPwd, newPwd, newPwd2, changePwdBtn, tokenInput, saveTokenBtn, enterEditBtn;
+
+  /* ---------- build admin UI (created dynamically so it never leaks into saved HTML) ---------- */
+  function ensureAdminUI(){
+    if (document.getElementById('adminModal')) { return; }
+
+    modal = document.createElement('div');
+    modal.id = 'adminModal';
+    modal.className = 'admin-modal';
+    modal.hidden = true;
+    modal.innerHTML =
+      '<div class="admin-modal-box">' +
+        '<div class="admin-modal-head"><span>管理员 Admin</span><button type="button" class="admin-modal-close" id="adminModalClose">×</button></div>' +
+        '<div class="admin-modal-body">' +
+          '<div id="adminLoginView">' +
+            '<input type="password" id="adminPwd" placeholder="管理密码" autocomplete="off">' +
+            '<button type="button" class="admin-primary" id="adminLoginBtn">登 录</button>' +
+            '<p class="admin-tip">默认密码：lou2026（登录后可在下方修改）</p>' +
+          '</div>' +
+          '<div id="adminManageView" hidden>' +
+            '<div class="admin-field">' +
+              '<label>修改密码</label>' +
+              '<input type="password" id="adminOldPwd" placeholder="旧密码" autocomplete="off">' +
+              '<input type="password" id="adminNewPwd" placeholder="新密码（至少4位）" autocomplete="off">' +
+              '<input type="password" id="adminNewPwd2" placeholder="确认新密码" autocomplete="off">' +
+              '<button type="button" id="adminChangePwdBtn">修改密码</button>' +
+            '</div>' +
+            '<div class="admin-field">' +
+              '<label>GitHub Personal Access Token（用于“保存到 GitHub”）</label>' +
+              '<input type="password" id="adminToken" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">' +
+              '<button type="button" id="adminSaveTokenBtn">保存 Token</button>' +
+              '<p class="admin-token-note">Token 仅保存在本机浏览器 localStorage，不会写入网页文件。需仓库 loudeping/loudeping.github.io 的 contents:write 权限。</p>' +
+            '</div>' +
+            '<div style="margin-top:16px"><button type="button" class="admin-primary" id="adminEnterEditBtn">进入编辑模式</button></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    toolbar = document.createElement('div');
+    toolbar.id = 'adminToolbar';
+    toolbar.className = 'admin-toolbar';
+    toolbar.hidden = true;
+    toolbar.innerHTML =
+      '<button type="button" id="adminResetBtn" disabled>重置位置</button>' +
+      '<button type="button" id="adminSaveGhBtn">保存到 GitHub</button>' +
+      '<button type="button" id="adminDownloadBtn">下载 HTML</button>' +
+      '<button type="button" id="adminExitBtn">退出编辑</button>';
+    document.body.appendChild(toolbar);
+
+    statusEl = document.createElement('div');
+    statusEl.id = 'adminStatus';
+    statusEl.className = 'admin-status';
+    statusEl.hidden = true;
+    statusEl.textContent = '编辑模式';
+    document.body.appendChild(statusEl);
+
+    pwdInput = document.getElementById('adminPwd');
+    loginBtn = document.getElementById('adminLoginBtn');
+    loginView = document.getElementById('adminLoginView');
+    manageView = document.getElementById('adminManageView');
+    oldPwd = document.getElementById('adminOldPwd');
+    newPwd = document.getElementById('adminNewPwd');
+    newPwd2 = document.getElementById('adminNewPwd2');
+    changePwdBtn = document.getElementById('adminChangePwdBtn');
+    tokenInput = document.getElementById('adminToken');
+    saveTokenBtn = document.getElementById('adminSaveTokenBtn');
+    enterEditBtn = document.getElementById('adminEnterEditBtn');
+    resetBtn = document.getElementById('adminResetBtn');
+
+    document.getElementById('adminModalClose').addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e){ if (e.target === modal) { closeModal(); } });
+
+    loginBtn.addEventListener('click', function(){
+      var cur = getStoredHash();
+      if (sha256Hex(pwdInput.value || '') === cur) {
+        try { sessionStorage.setItem(SS_AUTH, '1'); } catch(e){}
+        closeModal();
+        pwdInput.value = '';
+        enterEdit();
+        alert('登录成功，已进入编辑模式');
+      } else {
+        alert('密码错误');
+      }
+    });
+    pwdInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') { loginBtn.click(); } });
+
+    changePwdBtn.addEventListener('click', function(){
+      var cur = getStoredHash();
+      if (sha256Hex(oldPwd.value || '') !== cur) { alert('旧密码错误'); return; }
+      var n1 = newPwd.value || '', n2 = newPwd2.value || '';
+      if (n1.length < 4) { alert('新密码至少 4 位'); return; }
+      if (n1 !== n2) { alert('两次输入的新密码不一致'); return; }
+      try { localStorage.setItem(LS_HASH, sha256Hex(n1)); } catch(e){ alert('保存失败（localStorage 不可用）'); return; }
+      oldPwd.value = ''; newPwd.value = ''; newPwd2.value = '';
+      alert('密码已修改');
+    });
+
+    saveTokenBtn.addEventListener('click', function(){
+      var t = (tokenInput.value || '').trim();
+      try { localStorage.setItem(LS_TOKEN, t); } catch(e){ alert('保存失败（localStorage 不可用）'); return; }
+      alert('Token 已保存到本机');
+    });
+
+    enterEditBtn.addEventListener('click', function(){ closeModal(); enterEdit(); });
+
+    resetBtn.addEventListener('click', function(){
+      var sel = document.querySelector('.admin-selected');
+      if (sel) {
+        sel.style.transform = '';
+        sel.classList.remove('admin-moved');
+      }
+      resetBtn.disabled = true;
+    });
+
+    document.getElementById('adminSaveGhBtn').addEventListener('click', saveToGithub);
+    document.getElementById('adminDownloadBtn').addEventListener('click', downloadHtml);
+    document.getElementById('adminExitBtn').addEventListener('click', exitEdit);
+
+    var link = document.getElementById('adminLink');
+    if (link) { link.addEventListener('click', function(e){ e.preventDefault(); openModal(); }); }
+  }
+
+  function getStoredHash(){
+    try {
+      var h = localStorage.getItem(LS_HASH);
+      if (h) { return h; }
+    } catch(e){}
+    var d = sha256Hex('lou2026');
+    try { localStorage.setItem(LS_HASH, d); } catch(e){}
+    return d;
+  }
+
+  function isAuthed(){
+    try { return sessionStorage.getItem(SS_AUTH) === '1'; } catch(e){}
+    return false;
+  }
+
+  function openModal(){
+    ensureAdminUI();
+    var authed = isAuthed();
+    loginView.hidden = authed;
+    manageView.hidden = !authed;
+    try { tokenInput.value = localStorage.getItem(LS_TOKEN) || ''; } catch(e){}
+    modal.hidden = false;
+    if (!authed) { setTimeout(function(){ pwdInput.focus(); }, 50); }
+  }
+
+  function closeModal(){ modal.hidden = true; }
+
+  /* ---------- edit mode ---------- */
+  var TEXT_SELECTOR = '.en, .zh, .name, .name-sub, .poem-title, .tl-year, .sec-kicker, .brand-name, .brand-sub, .stat b, .quote footer';
+  var DRAG_SELECTOR = 'section, .card, .tl-item, .pub, .award, .media-tag, .poem, .quote';
+
+  function enterEdit(){
+    if (editing) { return; }
+    editing = true;
+    document.body.classList.add('admin-editing');
+    statusEl.hidden = false;
+
+    var texts = document.querySelectorAll(TEXT_SELECTOR);
+    for (var i = 0; i < texts.length; i++) {
+      var el = texts[i];
+      if (el.closest('.admin-modal, .admin-toolbar')) { continue; }
+      el.setAttribute('contenteditable', 'true');
+      el.setAttribute('spellcheck', 'false');
+    }
+
+    var blocks = document.querySelectorAll(DRAG_SELECTOR);
+    for (var j = 0; j < blocks.length; j++) {
+      var b = blocks[j];
+      if (b.closest('.admin-modal, .admin-toolbar')) { continue; }
+      b.classList.add('admin-draggable');
+      var h = document.createElement('div');
+      h.className = 'admin-handle';
+      h.title = '拖动调整位置';
+      h.textContent = '⠿';
+      b.appendChild(h);
+      addDrag(b, h);
+    }
+
+    var imgs = document.querySelectorAll('img');
+    for (var m = 0; m < imgs.length; m++) {
+      var img = imgs[m];
+      if (img.closest('.admin-modal, .admin-toolbar')) { continue; }
+      img.classList.add('admin-img');
+      var rz = document.createElement('div');
+      rz.className = 'admin-resize';
+      rz.textContent = '⤡';
+      rz.title = '拖拽等比缩放宽度';
+      img.parentNode.appendChild(rz);
+      addResize(img, rz);
+    }
+
+    toolbar.hidden = false;
+    resetBtn.disabled = true;
+  }
+
+  function exitEdit(){
+    if (!editing) { return; }
+    editing = false;
+    document.body.classList.remove('admin-editing');
+    statusEl.hidden = true;
+    document.querySelectorAll('.admin-handle, .admin-resize').forEach(function(el){ el.remove(); });
+    document.querySelectorAll('.admin-draggable').forEach(function(el){ el.classList.remove('admin-draggable'); });
+    document.querySelectorAll('.admin-selected').forEach(function(el){ el.classList.remove('admin-selected'); });
+    document.querySelectorAll('.admin-img').forEach(function(el){ el.classList.remove('admin-img'); });
+    document.querySelectorAll('[contenteditable="true"]').forEach(function(el){ el.removeAttribute('contenteditable'); });
+    toolbar.hidden = true;
+    resetBtn.disabled = true;
+  }
+
+  function addDrag(el, handle){
+    handle.addEventListener('mousedown', function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      var startX = ev.clientX, startY = ev.clientY;
+      var m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(el.style.transform || '');
+      var curX = m ? parseFloat(m[1]) : 0;
+      var curY = m ? parseFloat(m[2]) : 0;
+      function move(me){
+        el.style.transform = 'translate(' + (curX + me.clientX - startX) + 'px,' + (curY + me.clientY - startY) + 'px)';
+        el.classList.add('admin-moved');
+      }
+      function up(){
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+      }
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+  }
+
+  function addResize(img, rz){
+    rz.addEventListener('mousedown', function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      var startX = ev.clientX;
+      var startW = img.getBoundingClientRect().width;
+      function move(me){
+        var nw = Math.max(60, startW + (me.clientX - startX));
+        img.style.width = nw + 'px';
+      }
+      function up(){
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+      }
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+  }
+
+  function pickImage(img){
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = function(){
+      var f = input.files && input.files[0];
+      if (!f) { return; }
+      var reader = new FileReader();
+      reader.onload = function(){ img.src = reader.result; };
+      reader.readAsDataURL(f);
+    };
+    input.click();
+  }
+
+  document.addEventListener('click', function(e){
+    if (!editing) { return; }
+    if (e.target.closest('.admin-modal, .admin-toolbar')) { return; }
+    var img = e.target.closest('img.admin-img');
+    if (img) { e.preventDefault(); pickImage(img); return; }
+    if (e.target.closest('.admin-handle') || e.target.closest('.admin-resize')) { return; }
+    var draggable = e.target.closest('.admin-draggable');
+    document.querySelectorAll('.admin-selected').forEach(function(el){ el.classList.remove('admin-selected'); });
+    if (draggable) {
+      draggable.classList.add('admin-selected');
+      resetBtn.disabled = false;
+    } else {
+      resetBtn.disabled = true;
+    }
+  });
+
+  /* ---------- serialize (strip all editing UI) ---------- */
+  function serializeHtml(){
+    var clone = document.documentElement.cloneNode(true);
+    clone.querySelectorAll('.admin-handle, .admin-resize, #adminModal, #adminToolbar, #adminStatus').forEach(function(el){ el.remove(); });
+    clone.querySelectorAll('[contenteditable]').forEach(function(el){ el.removeAttribute('contenteditable'); el.removeAttribute('spellcheck'); });
+    var cb = clone.querySelector('body');
+    if (cb) { cb.classList.remove('admin-editing'); }
+    clone.querySelectorAll('.admin-selected, .admin-img, .admin-draggable, .admin-moved').forEach(function(el){
+      el.classList.remove('admin-selected');
+      el.classList.remove('admin-img');
+      el.classList.remove('admin-draggable');
+      el.classList.remove('admin-moved');
+    });
+    clone.querySelectorAll('[class*="admin-"]').forEach(function(el){
+      el.className = el.className.split(/\s+/).filter(function(c){ return c.indexOf('admin-') !== 0; }).join(' ');
+    });
+    return '<!DOCTYPE html>\n' + clone.outerHTML;
+  }
+
+  function utf8ToBase64(str){
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+
+  /* ---------- save to GitHub ---------- */
+  function saveToGithub(){
+    var token = '';
+    try { token = localStorage.getItem(LS_TOKEN) || ''; } catch(e){}
+    if (!token) {
+      alert('请先在“管理员 Admin”弹窗中填写并保存 GitHub Token');
+      openModal();
+      return;
+    }
+    var content = serializeHtml();
+    var url = 'https://api.github.com/repos/loudeping/loudeping.github.io/contents/index.html';
+    var headers = {
+      'Authorization': 'token ' + token,
+      'Accept': 'application/vnd.github+json'
+    };
+    fetch(url, { method: 'GET', headers: headers })
+      .then(function(r){
+        if (!r.ok) { throw new Error('GitHub 鉴权/仓库访问失败 (HTTP ' + r.status + ')，请检查 Token 与仓库名'); }
+        return r.json();
+      })
+      .then(function(meta){
+        var body = {
+          message: 'Update site content via admin editor',
+          content: utf8ToBase64(content)
+        };
+        if (meta.sha) { body.sha = meta.sha; }
+        return fetch(url, { method: 'PUT', headers: headers, body: JSON.stringify(body) });
+      })
+      .then(function(r){
+        if (r.ok) {
+          alert('已发布上线：https://loudeping.github.io/');
+        } else {
+          return r.json().then(function(e){ throw new Error((e && e.message) ? e.message : '提交失败 (HTTP ' + r.status + ')'); });
+        }
+      })
+      .catch(function(err){ alert('发布失败：' + err.message); });
+  }
+
+  /* ---------- download ---------- */
+  function downloadHtml(){
+    var content = serializeHtml();
+    var blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'index.html';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  /* ---------- init ---------- */
+  ensureAdminUI();
+  if (isAuthed()) {
+    // keep current session visible if user had already logged in this tab session
+  }
+})();
 </script>
 </body>
 </html>
