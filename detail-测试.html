@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh" data-file="detail-测试.html">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>测试 · 娄德平</title>
+<style>
+:root{ --bg:#f7f3ea; --paper:#fbf8f1; --ink:#2b2722; --ink-soft:#6d655c; --line:#ddd6c8; --vermilion:#a63b2b; --gold:#b98a3d; }
+*{ margin:0; padding:0; box-sizing:border-box; }
+html{ scroll-behavior:smooth; }
+body{ font-family:"STKaiti","KaiTi","Songti SC","SimSun",Georgia,serif; background:var(--bg); color:var(--ink); line-height:1.9; }
+.detail-header{ position:fixed; top:0; left:0; right:0; z-index:500; display:flex; align-items:center; justify-content:space-between; padding:14px 26px; background:rgba(247,243,234,.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); }
+.detail-back{ color:var(--vermilion); text-decoration:none; font-size:15px; letter-spacing:.1em; }
+.detail-back:hover{ opacity:.8; }
+.detail-version{ font-size:11px; letter-spacing:.2em; opacity:.55; }
+.detail-admin{ font-size:12px; color:var(--ink-soft); text-decoration:underline; letter-spacing:.1em; opacity:.75; }
+.detail-main{ max-width:860px; margin:0 auto; padding:110px 28px 60px; }
+.detail-title{ font-size:34px; letter-spacing:.12em; color:var(--ink); border-bottom:2px solid var(--vermilion); display:inline-block; padding-bottom:10px; margin-bottom:28px; font-weight:700; }
+.detail-body{ font-size:17px; }
+.detail-body p{ margin-bottom:16px; text-align:justify; }
+.detail-body img{ max-width:100%; height:auto; display:block; margin:18px auto; }
+.detail-body a{ color:var(--vermilion); text-decoration:underline; }
+.detail-foot{ text-align:center; padding:40px 20px 30px; font-size:12px; letter-spacing:.2em; color:var(--ink-soft); opacity:.75; }
+.detail-ink{ width:120px; height:2px; background:var(--line); margin:0 auto 18px; }
+.admin-modal{ position:fixed; inset:0; z-index:1000; background:rgba(28,26,23,.55); display:flex; align-items:center; justify-content:center; padding:18px; }
+.admin-modal[hidden]{ display:none; }
+.admin-modal-box{ background:#fbf8f1; border-radius:14px; max-width:440px; width:100%; padding:26px 26px 22px; box-shadow:0 20px 60px rgba(0,0,0,.35); max-height:88vh; overflow:auto; }
+.admin-modal-head{ display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:12px; }
+.admin-modal-head span{ font-size:17px; letter-spacing:.15em; font-weight:700; }
+.admin-modal-close{ background:transparent !important; color:var(--ink) !important; font-size:20px; padding:0 6px !important; margin:0 !important; line-height:1; }
+.admin-modal input[type="password"], .admin-modal input[type="text"]{ width:100%; margin:8px 0; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:#fff; font-family:inherit; font-size:14px; color:var(--ink); box-sizing:border-box; }
+.admin-modal button{ font-family:inherit; font-size:14px; cursor:pointer; border:none; border-radius:8px; padding:9px 18px; margin:6px 6px 0 0; background:var(--ink); color:#f6f1e7; letter-spacing:1px; }
+.admin-modal button.admin-primary{ background:var(--vermilion); }
+.admin-field{ margin-top:16px; border-top:1px solid var(--line); padding-top:14px; }
+.admin-field label{ display:block; font-size:13px; color:var(--ink-soft); margin-bottom:2px; letter-spacing:.05em; }
+.admin-token-note{ font-size:12px; color:var(--ink-soft); margin-top:4px; }
+.admin-font-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }
+.admin-font-item{ text-align:left; font-size:14px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); cursor:pointer; line-height:1.3; }
+.admin-font-item:hover{ border-color:var(--vermilion); color:var(--vermilion); }
+.admin-font-item small{ display:block; font-size:11px; color:var(--ink-soft); margin-top:2px; }
+.admin-toolbar{ position:fixed; right:18px; bottom:18px; z-index:1100; display:flex; gap:8px; background:#262220; padding:10px 14px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); flex-wrap:wrap; max-width:calc(100vw - 36px); }
+.admin-toolbar[hidden]{ display:none; }
+.admin-toolbar button{ font-family:inherit; font-size:13px; color:#f6f1e7; background:transparent; border:1px solid rgba(246,241,231,.4); border-radius:8px; padding:8px 14px; cursor:pointer; letter-spacing:1px; }
+.admin-toolbar button:hover{ background:var(--vermilion); border-color:var(--vermilion); }
+body.admin-editing [contenteditable="true"]:hover{ outline:1px dashed rgba(166,59,43,.45); outline-offset:2px; cursor:text; }
+body.admin-editing [contenteditable="true"]:focus{ outline:2px solid var(--vermilion); background:rgba(166,59,43,.05); }
+body.admin-editing img.admin-img{ height:auto !important; object-fit:contain; cursor:pointer; }
+.admin-status{ position:fixed; left:18px; bottom:18px; z-index:1100; background:rgba(38,34,32,.85); color:#f6f1e7; font-size:12px; letter-spacing:.1em; padding:8px 14px; border-radius:8px; }
+</style>
+</head>
+<body>
+<header class="detail-header">
+<a href="index.html" class="detail-back">← 返回首页</a>
+<span class="detail-version">v3.0</span>
+<a href="#" class="detail-admin" id="adminLink">管理员 Admin</a>
+</header>
+<main class="detail-main">
+<h1 class="detail-title">测试</h1>
+<div class="detail-body" id="detailBody"><p>
+      <div class="poem-title" contenteditable="true" spellcheck="false">《茶道》 The Way of Tea</div>
+      <div class="poem-lines">
+        <span class="line en" contenteditable="true" spellcheck="false">Drain the morning dew, drink the sunset clouds dry —</span>
+        <span class="line en" contenteditable="true" spellcheck="false">into the old pot, another handful of stars.</span>
+        <span class="line en" contenteditable="true" spellcheck="false">Hand never leaves the pot; feel how vast heaven and earth are.</span>
+        <span class="line en" contenteditable="true" spellcheck="false">Lips never leave the tea; ask who has enlightened the years.</span>
+        <span class="line zh" contenteditable="true" spellcheck="false">饮尽晨露，喝断晚霞，老壶内又放进星星一把。</span>
+        <span class="line zh" contenteditable="true" spellcheck="false">手不离壶，摸一摸乾坤有多大。</span>
+        <span class="line zh" contenteditable="true" spellcheck="false">口不离茶，问一问岁月谁点化。</span>
+      </div>
+    <div class="admin-handle" title="拖动调整位置">⠿</div></p></div>
+</main>
+<footer class="detail-foot"><div class="detail-ink"></div>娄德平 · Lou Deping · v3.0</footer>
+<script>
+(function(){
+'use strict';
+var LS_HASH='lou_detail_hash', LS_TOKEN='lou_detail_token', SS_AUTH='lou_detail_authed';
+var CFG_FILE='admin-config.json';
+var CFG_FALLBACK='https://raw.githubusercontent.com/loudeping/loudeping.github.io/master/admin-config.json';
+var FILE=document.documentElement.getAttribute('data-file')||'index.html';
+function sha256(ascii){
+    function rightRotate(v,a){ return (v>>>a)|(v<<(32-a)); }
+    var maxWord = Math.pow(2,32), result = '', words = [], i, j;
+    var asciiBitLength = ascii.length * 8;
+    var hash = (sha256.h = sha256.h || []);
+    var k = (sha256.k = sha256.k || []);
+    var primeCounter = k.length;
+    var isComposite = {};
+    for (var candidate = 2; primeCounter < 64; candidate++) {
+      if (!isComposite[candidate]) {
+        for (i = 0; i < 313; i += candidate) { isComposite[i] = candidate; }
+        hash[primeCounter] = (Math.pow(candidate, 0.5) * maxWord) | 0;
+        k[primeCounter++] = (Math.pow(candidate, 1 / 3) * maxWord) | 0;
+      }
+    }
+    ascii += '\x80';
+    while (ascii.length % 64 - 56) { ascii += '\x00'; }
+    for (i = 0; i < ascii.length; i++) {
+      j = ascii.charCodeAt(i);
+      if (j >> 8) { return ''; }
+      words[i >> 2] |= j << (((3 - i) % 4) * 8);
+    }
+    words[words.length] = ((asciiBitLength / maxWord) | 0);
+    words[words.length] = (asciiBitLength);
+    for (j = 0; j < words.length;) {
+      var w = words.slice(j, j += 16);
+      var oldHash = hash.slice(0, 8);
+      for (i = 0; i < 64; i++) {
+        var w15 = w[i-15], w2 = w[i-2];
+        var a = hash[0], e = hash[4];
+        var temp1 = hash[7]
+          + (rightRotate(e,6) ^ rightRotate(e,11) ^ rightRotate(e,25))
+          + ((e & hash[5]) ^ ((~e) & hash[6]))
+          + k[i]
+          + (w[i] = (i < 16) ? w[i] : (
+              w[i-16]
+              + (rightRotate(w15,7) ^ rightRotate(w15,18) ^ (w15>>>3))
+              + w[i-7]
+              + (rightRotate(w2,17) ^ rightRotate(w2,19) ^ (w2>>>10))
+            ) | 0);
+        var temp2 = (rightRotate(a,2) ^ rightRotate(a,13) ^ rightRotate(a,22))
+          + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+        hash = [(temp1 + temp2) | 0].concat(hash);
+        hash[4] = (hash[4] + temp1) | 0;
+      }
+      for (i = 0; i < 8; i++) { hash[i] = (hash[i] + oldHash[i]) | 0; }
+    }
+    for (i = 0; i < 8; i++) {
+      for (j = 3; j + 1; j--) {
+        var b = (hash[i] >> (j * 8)) & 255;
+        result += ((b < 16) ? 0 : '') + b.toString(16);
+      }
+    }
+    return result;
+  }
+function sha256Hex(str){ return sha256(encodeURIComponent(str)); }
+var editing=false, modal, toolbar, statusEl;
+var pwdInput, loginBtn, loginView, manageView;
+var oldPwd,newPwd,newPwd2,changePwdBtn,tokenInput,saveTokenBtn,enterEditBtn;
+function ensureUI(){ if (modal) { return; }
+  modal=document.createElement('div'); modal.id='adminModal'; modal.className='admin-modal'; modal.hidden=true;
+  modal.innerHTML=
+    '<div class="admin-modal-box">' +
+    '<div class="admin-modal-head"><span>管理员 Admin</span><button type="button" class="admin-modal-close" id="adminModalClose">×</button></div>' +
+    '<div class="admin-modal-body">' +
+      '<div id="adminLoginView"><input type="password" id="adminPwd" placeholder="管理员密码" autocomplete="off"><button type="button" class="admin-primary" id="adminLoginBtn">登 录</button></div>' +
+      '<div id="adminManageView" hidden>' +
+        '<div class="admin-field"><label>修改密码</label><input type="password" id="adminOldPwd" placeholder="旧密码"><input type="password" id="adminNewPwd" placeholder="新密码（至少 4 位）"><input type="password" id="adminNewPwd2" placeholder="重复新密码"><button type="button" id="adminChangePwdBtn">修改密码</button></div>' +
+        '<div class="admin-field"><label>GitHub Token（仅存本机 localStorage）</label><input type="text" id="adminToken" placeholder="ghp_..."><button type="button" id="adminSaveTokenBtn">保存 Token</button><p class="admin-token-note">用于保存详情页到 loudeping/loudeping.github.io 仓库</p></div>' +
+        '<div class="admin-field"><button type="button" class="admin-primary" id="adminEnterEditBtn">进入编辑模式</button></div>' +
+      '</div>' +
+    '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  toolbar=document.createElement('div'); toolbar.id='adminToolbar'; toolbar.className='admin-toolbar'; toolbar.hidden=true;
+  toolbar.innerHTML='<button type="button" id="adminFontBtn">字体</button><button type="button" id="adminSaveGhBtn">保存到 GitHub</button><button type="button" id="adminDownloadBtn">下载 HTML</button><button type="button" id="adminExitBtn">退出编辑</button>';
+  document.body.appendChild(toolbar);
+  statusEl=document.createElement('div'); statusEl.id='adminStatus'; statusEl.className='admin-status'; statusEl.textContent='编辑模式'; statusEl.hidden=true;
+  document.body.appendChild(statusEl);
+  pwdInput=document.getElementById('adminPwd'); loginBtn=document.getElementById('adminLoginBtn');
+  loginView=document.getElementById('adminLoginView'); manageView=document.getElementById('adminManageView');
+  oldPwd=document.getElementById('adminOldPwd'); newPwd=document.getElementById('adminNewPwd'); newPwd2=document.getElementById('adminNewPwd2');
+  changePwdBtn=document.getElementById('adminChangePwdBtn'); tokenInput=document.getElementById('adminToken');
+  saveTokenBtn=document.getElementById('adminSaveTokenBtn'); enterEditBtn=document.getElementById('adminEnterEditBtn');
+  document.getElementById('adminModalClose').addEventListener('click', function(){ modal.hidden=true; });
+  modal.addEventListener('click', function(e){ if (e.target===modal) { modal.hidden=true; } });
+  loginBtn.addEventListener('click', function(){
+    var p=pwdInput.value||''; if (!p) { alert('请输入密码'); return; }
+    loginBtn.disabled=true; loginBtn.textContent='验证中…';
+    fetchConfig().then(function(cfg){
+      if (hashPassword(cfg.salt,p)===cfg.hash) { try { sessionStorage.setItem(SS_AUTH,'1'); } catch(e){} modal.hidden=true; pwdInput.value=''; enterEdit(); alert('登录成功，已进入编辑模式'); }
+      else { alert('密码错误'); }
+    }).catch(function(err){ alert('无法验证密码：'+err.message); }).then(function(){ loginBtn.disabled=false; loginBtn.textContent='登 录'; });
+  });
+  pwdInput.addEventListener('keydown', function(e){ if (e.key==='Enter') { loginBtn.click(); } });
+  changePwdBtn.addEventListener('click', function(){
+    var token=''; try { token=localStorage.getItem(LS_TOKEN)||''; } catch(e){}
+    if (!token) { alert('修改密码需要先保存 GitHub Token（用于更新仓库中的密码配置）'); openModal(); return; }
+    var n1=newPwd.value||'', n2=newPwd2.value||'';
+    if (n1.length<4) { alert('新密码至少 4 位'); return; }
+    if (n1!==n2) { alert('两次输入的新密码不一致'); return; }
+    changePwdBtn.disabled=true; changePwdBtn.textContent='提交中…';
+    fetchConfig().then(function(cfg){
+      if (hashPassword(cfg.salt,oldPwd.value||'')!==cfg.hash) { throw new Error('旧密码错误'); }
+      var newSalt=''; var hexChars='0123456789abcdef'; for (var i=0;i<16;i++){ newSalt+=hexChars.charAt(Math.floor(Math.random()*16)); }
+      var cfgContent=JSON.stringify({version:1,salt:newSalt,hash:hashPassword(newSalt,n1)});
+      var url='https://api.github.com/repos/loudeping/loudeping.github.io/contents/'+CFG_FILE;
+      var headers={ 'Authorization':'token '+token, 'Accept':'application/vnd.github+json' };
+      return fetch(url,{ method:'GET', headers:headers })
+        .then(function(r){ if (!r.ok) { throw new Error('GitHub 访问失败 (HTTP '+r.status+')，请检查 Token'); } return r.json(); })
+        .then(function(meta){ var body={ message:'Update admin password', content:utf8ToBase64(cfgContent) }; if (meta.sha) { body.sha=meta.sha; } return fetch(url,{ method:'PUT', headers:headers, body:JSON.stringify(body) }); })
+        .then(function(r){ if (!r.ok) { return r.json().then(function(e){ throw new Error((e&&e.message)?e.message:'提交失败 (HTTP '+r.status+')'); }); } });
+    }).then(function(){ oldPwd.value=''; newPwd.value=''; newPwd2.value=''; alert('密码已修改并写入网站仓库，全站立即生效'); })
+      .catch(function(err){ alert('修改密码失败：'+err.message); })
+      .then(function(){ changePwdBtn.disabled=false; changePwdBtn.textContent='修改密码'; });
+  });
+  saveTokenBtn.addEventListener('click', function(){
+    var t=(tokenInput.value||'').trim();
+    try { localStorage.setItem(LS_TOKEN, t); } catch(e){ alert('保存失败（localStorage 不可用）'); return; }
+    alert('Token 已保存到本机');
+  });
+  enterEditBtn.addEventListener('click', function(){ modal.hidden=true; enterEdit(); });
+  document.getElementById('adminSaveGhBtn').addEventListener('click', saveToGithub);
+  var fontModal=document.createElement('div'); fontModal.id='adminFontModal'; fontModal.className='admin-modal'; fontModal.hidden=true;
+  fontModal.innerHTML='<div class="admin-modal-box"><div class="admin-modal-head"><span>详情页字体</span><button type="button" class="admin-modal-close" id="adminFontModalClose">×</button></div><div class="admin-modal-body">' +
+    '<div class="admin-field"><label>整页字体（应用到详情页全部文字）</label><div class="admin-font-grid" id="adminDetailFontGrid"></div></div>' +
+    '<div class="admin-field"><label>选中文字字体（先选中详情页文字，再点下方条目）</label><div class="admin-font-grid" id="adminDetailSelGrid"></div></div>' +
+    '</div></div>';
+  document.body.appendChild(fontModal);
+  document.getElementById('adminFontModalClose').addEventListener('click', function(){ fontModal.hidden=true; });
+  fontModal.addEventListener('click', function(e){ if (e.target===fontModal) { fontModal.hidden=true; } });
+  document.getElementById('adminFontBtn').addEventListener('click', function(){ buildDetailFontGrid(); fontModal.hidden=false; });
+  document.getElementById('adminDownloadBtn').addEventListener('click', downloadHtml);
+  document.getElementById('adminExitBtn').addEventListener('click', exitEdit);
+}
+function fetchConfig(){
+  return fetch(CFG_FILE,{ cache:'no-store' }).then(function(r){ if (!r.ok) { throw new Error('config '+r.status); } return r.json(); })
+    .catch(function(){ return fetch(CFG_FALLBACK,{ cache:'no-store' }).then(function(r){ if (!r.ok) { throw new Error('无法获取密码配置（'+r.status+'）'); } return r.json(); }); });
+}
+function hashPassword(salt,pwd){ return sha256Hex((salt||'')+pwd); }
+var FONT_LIST=[
+  {cat:'中文',name:'思源黑体',family:'Noto Sans SC',file:'NotoSansSC-Regular.woff2',desc:'现代无衬线'},{cat:'中文',name:'思源宋体',family:'Noto Serif SC',file:'NotoSerifSC-Regular.woff2',desc:'经典宋体'},
+  {cat:'中文',name:'站酷快乐体',family:'ZCOOL KuaiLe',file:'ZCOOLKuaiLe-Regular.woff2',desc:'圆润活泼'},{cat:'中文',name:'站酷庆科黄油体',family:'ZCOOL QingKe HuangYou',file:'ZCOOLQingKeHuangYou-Regular.woff2',desc:'厚重标题'},
+  {cat:'中文',name:'站酷小薇LOGO体',family:'ZCOOL XiaoWei',file:'ZCOOLXiaoWei-Regular.woff2',desc:'优雅人文'},{cat:'中文',name:'霞鹜文楷',family:'LXGW WenKai',file:'LXGWWenKai-Regular.woff2',desc:'手写楷体'},
+  {cat:'中文',name:'马善政楷书',family:'Ma Shan Zheng',file:'MaShanZheng-Regular.woff2',desc:'毛笔楷书'},{cat:'中文',name:'龙藏体',family:'Long Cang',file:'LongCang-Regular.woff2',desc:'潇洒行书'},
+  {cat:'中文',name:'志莽行书',family:'Zhi Mang Xing',file:'ZhiMangXing-Regular.woff2',desc:'粗犷行草'},{cat:'中文',name:'流江毛笔草体',family:'Liu Jian Mao Cao',file:'LiuJianMaoCao-Regular.woff2',desc:'狂草笔意'},
+  {cat:'英文',name:'Inter',family:'Inter',file:'Inter-Regular.woff2',desc:'现代简洁'},{cat:'英文',name:'Playfair Display',family:'Playfair Display',file:'PlayfairDisplay-Regular.woff2',desc:'优雅衬线'},
+  {cat:'英文',name:'Lora',family:'Lora',file:'Lora-Regular.woff2',desc:'经典书卷'},{cat:'英文',name:'Merriweather',family:'Merriweather',file:'Merriweather-Regular.woff2',desc:'报纸衬线'},
+  {cat:'英文',name:'Montserrat',family:'Montserrat',file:'Montserrat-Regular.woff2',desc:'几何无衬线'},{cat:'英文',name:'Roboto',family:'Roboto',file:'Roboto-Regular.woff2',desc:'中性清爽'},
+  {cat:'英文',name:'Open Sans',family:'Open Sans',file:'OpenSans-Regular.woff2',desc:'亲和易读'},{cat:'英文',name:'Oswald',family:'Oswald',file:'Oswald-Regular.woff2',desc:'窄体标题'},
+  {cat:'英文',name:'Cinzel',family:'Cinzel',file:'Cinzel-Regular.woff2',desc:'古典罗马'},{cat:'英文',name:'Dancing Script',family:'Dancing Script',file:'DancingScript-Regular.woff2',desc:'手写花体'}
+  ];
+function injectFontFaces(){ if (document.getElementById('adminFontFaces')) { return; } var css=FONT_LIST.map(function(f){ return "@font-face{font-family:'"+f.family+"';src:url('fonts/'+f.file+') format('woff2');font-weight:400;font-style:normal;font-display:swap;}"; }).join('\n'); var st=document.createElement('style'); st.id='adminFontFaces'; st.textContent=css; document.head.appendChild(st); }
+function buildDetailFontGrid(){
+  injectFontFaces();
+  var g=document.getElementById('adminDetailFontGrid');
+  if (!g.dataset.built) { g.dataset.built='1';
+    var d=document.createElement('button'); d.type='button'; d.className='admin-font-item'; d.innerHTML='<span>恢复默认</span><small>回到原始字体</small>'; d.addEventListener('click', function(){ var b=document.getElementById('detailBody'); if (b) { b.style.fontFamily=''; } }); g.appendChild(d);
+    FONT_LIST.forEach(function(f){ var b=document.createElement('button'); b.type='button'; b.className='admin-font-item'; b.style.fontFamily='"'+f.family+'",serif'; b.innerHTML='<span>'+f.name+' · '+f.family+'</span><small>'+f.desc+'</small>'; b.addEventListener('click', function(){ var bd=document.getElementById('detailBody'); if (bd) { bd.style.fontFamily='"'+f.family+'"'+',"STKaiti","KaiTi","Songti SC","SimSun",Georgia,serif'; } }); g.appendChild(b); });
+  }
+  var s=document.getElementById('adminDetailSelGrid');
+  if (!s.dataset.built) { s.dataset.built='1';
+    var d2=document.createElement('button'); d2.type='button'; d2.className='admin-font-item'; d2.innerHTML='<span>恢复继承</span><small>取消选中文字个性字体</small>'; d2.addEventListener('click', function(){ document.execCommand('fontName', false, ''); }); s.appendChild(d2);
+    FONT_LIST.forEach(function(f){ var b=document.createElement('button'); b.type='button'; b.className='admin-font-item'; b.style.fontFamily='"'+f.family+'",serif'; b.innerHTML='<span>'+f.name+' · '+f.family+'</span><small>'+f.desc+'</small>'; b.addEventListener('click', function(){ document.execCommand('fontName', false, '"'+f.family+'"'); }); s.appendChild(b); });
+  }
+}
+function isAuthed(){ try { return sessionStorage.getItem(SS_AUTH)==='1'; } catch(e){} return false; }
+function openModal(){
+  ensureUI();
+  var authed=isAuthed();
+  loginView.hidden=authed; manageView.hidden=!authed;
+  try { tokenInput.value=localStorage.getItem(LS_TOKEN)||''; } catch(e){}
+  modal.hidden=false;
+  if (!authed) { setTimeout(function(){ pwdInput.focus(); }, 50); }
+}
+function enterEdit(){
+  if (editing) { return; }
+  editing=true; document.body.classList.add('admin-editing'); statusEl.hidden=false;
+  var body=document.getElementById('detailBody');
+  if (body) { body.setAttribute('contenteditable','true'); body.setAttribute('spellcheck','false'); }
+  document.querySelectorAll('.detail-body img').forEach(function(img){ img.classList.add('admin-img'); });
+  toolbar.hidden=false;
+}
+function exitEdit(){
+  if (!editing) { return; }
+  editing=false; document.body.classList.remove('admin-editing'); statusEl.hidden=true;
+  var body=document.getElementById('detailBody');
+  if (body) { body.removeAttribute('contenteditable'); body.removeAttribute('spellcheck'); }
+  document.querySelectorAll('.admin-img').forEach(function(el){ el.classList.remove('admin-img'); });
+  toolbar.hidden=true;
+}
+function pickImage(img){
+  var input=document.createElement('input'); input.type='file'; input.accept='image/*';
+  input.onchange=function(){ var f=input.files&&input.files[0]; if (!f) { return; } var reader=new FileReader(); reader.onload=function(){ img.src=reader.result; }; reader.readAsDataURL(f); };
+  input.click();
+}
+document.addEventListener('click', function(e){
+  if (!editing) { return; }
+  if (e.target.closest('.admin-modal,.admin-toolbar')) { return; }
+  if (e.target.closest('a')) { e.preventDefault(); }
+  var img=e.target.closest('img.admin-img');
+  if (img) { e.preventDefault(); pickImage(img); }
+});
+function serializeHtml(){
+  var clone=document.documentElement.cloneNode(true);
+  clone.querySelectorAll('#adminModal,#adminToolbar,#adminStatus,#adminFontModal').forEach(function(el){ el.remove(); });
+  clone.querySelectorAll('[contenteditable]').forEach(function(el){ el.removeAttribute('contenteditable'); el.removeAttribute('spellcheck'); });
+  var cb=clone.querySelector('body'); if (cb) { cb.classList.remove('admin-editing'); }
+  clone.querySelectorAll('.admin-img').forEach(function(el){ el.classList.remove('admin-img'); });
+  clone.querySelectorAll('[class*="admin-"]').forEach(function(el){
+    el.className=el.className.split(/\s+/).filter(function(c){ return c.indexOf('admin-')!==0; }).join(' ');
+  });
+  return '<!DOCTYPE html>\n'+clone.outerHTML;
+}
+function utf8ToBase64(str){ return btoa(unescape(encodeURIComponent(str))); }
+function saveToGithub(){
+  var token='';
+  try { token=localStorage.getItem(LS_TOKEN)||''; } catch(e){}
+  if (!token) { alert('请先在“管理员 Admin”弹窗中填写并保存 GitHub Token'); openModal(); return; }
+  var content=serializeHtml();
+  var url='https://api.github.com/repos/loudeping/loudeping.github.io/contents/'+encodeURIComponent(FILE);
+  var headers={ 'Authorization':'token '+token, 'Accept':'application/vnd.github+json' };
+  fetch(url,{ method:'GET', headers:headers })
+    .then(function(r){ if (!r.ok) { throw new Error('GitHub 鉴权/仓库访问失败 (HTTP '+r.status+')，请检查 Token 与仓库名'); } return r.json(); })
+    .then(function(meta){
+      var body={ message:'Update detail page: '+FILE, content:utf8ToBase64(content) };
+      if (meta.sha) { body.sha=meta.sha; }
+      return fetch(url,{ method:'PUT', headers:headers, body:JSON.stringify(body) });
+    })
+    .then(function(r){ if (r.ok) { alert('已保存：https://loudeping.github.io/'+FILE); } else { return r.json().then(function(e){ throw new Error((e&&e.message)?e.message:'提交失败 (HTTP '+r.status+')'); }); } })
+    .catch(function(err){ alert('保存失败：'+err.message); });
+}
+function downloadHtml(){
+  var content=serializeHtml();
+  var blob=new Blob([content],{ type:'text/html;charset=utf-8' });
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=FILE;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+ensureUI();
+var link=document.getElementById('adminLink');
+if (link) { link.addEventListener('click', function(e){ e.preventDefault(); openModal(); }); }
+})();
+</script>
+</body>
+</html>
