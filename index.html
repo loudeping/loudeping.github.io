@@ -591,6 +591,13 @@
   .admin-field label{ display:block; font-size:13px; color:var(--ink-soft); margin-bottom:2px; letter-spacing:.05em; }
   .admin-tip{ font-size:12px; color:var(--ink-soft); margin-top:6px; }
   .admin-token-note{ font-size:12px; color:var(--ink-soft); margin-top:4px; }
+  .admin-font-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }
+  .admin-font-item{ text-align:left; font-size:14px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); cursor:pointer; line-height:1.3; }
+  .admin-font-item:hover{ border-color:var(--vermilion); color:var(--vermilion); }
+  .admin-font-item small{ display:block; font-size:11px; color:var(--ink-soft); margin-top:2px; }
+  .admin-font-item.admin-font-active{ border-color:var(--vermilion); background:rgba(166,59,43,.07); color:var(--vermilion); }
+  .admin-font-section{ margin-top:14px; border-top:1px solid var(--line); padding-top:10px; }
+  .admin-font-section h4{ font-size:13px; letter-spacing:.1em; margin-bottom:4px; color:var(--ink); font-weight:700; }
 
   .admin-toolbar{ position:fixed; right:18px; bottom:18px; z-index:1100; display:flex; gap:8px; background:#262220; padding:10px 14px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); flex-wrap:wrap; max-width:calc(100vw - 36px); }
   .admin-toolbar[hidden]{ display:none; }
@@ -685,6 +692,7 @@
   var pwdInput, loginBtn, loginView, manageView;
   var oldPwd, newPwd, newPwd2, changePwdBtn, tokenInput, saveTokenBtn, enterEditBtn;
   var linkModal, linkBtn, detailBtn, unlinkBtn, linkOkBtn, detailOkBtn;
+  var fontModal, fontBtn;
 
   /* ---------- build admin UI (created dynamically so it never leaks into saved HTML) ---------- */
   function ensureAdminUI(){
@@ -701,7 +709,7 @@
           '<div id="adminLoginView">' +
             '<input type="password" id="adminPwd" placeholder="管理密码" autocomplete="off">' +
             '<button type="button" class="admin-primary" id="adminLoginBtn">登 录</button>' +
-            '<p class="admin-tip">默认密码：lou2026（登录后可在下方修改）</p>' +
+            '<p class="admin-tip">密码由网站仓库统一管理，修改后全站生效，不再存在默认密码</p>' +
           '</div>' +
           '<div id="adminManageView" hidden>' +
             '<div class="admin-field">' +
@@ -729,6 +737,7 @@
     toolbar.hidden = true;
     toolbar.innerHTML =
       '<button type="button" id="adminResetBtn" disabled>重置位置</button>' +
+      '<button type="button" id="adminFontBtn">字体</button>' +
       '<button type="button" id="adminLinkBtn" disabled>设为外部链接</button>' +
       '<button type="button" id="adminDetailBtn" disabled>创建详情页</button>' +
       '<button type="button" id="adminUnlinkBtn" disabled>移除链接</button>' +
@@ -768,6 +777,29 @@
     statusEl.textContent = '编辑模式';
     document.body.appendChild(statusEl);
 
+    /* ---------- font picker modal (admin-* prefix, stripped on serialize) ---------- */
+    fontModal = document.createElement('div');
+    fontModal.id = 'adminFontModal';
+    fontModal.className = 'admin-modal';
+    fontModal.hidden = true;
+    fontModal.innerHTML =
+      '<div class="admin-modal-box" style="max-width:560px">' +
+        '<div class="admin-modal-head"><span>字体设置</span><button type="button" class="admin-modal-close" id="adminFontModalClose">×</button></div>' +
+        '<div class="admin-modal-body">' +
+          '<div class="admin-font-section">' +
+            '<h4>整站字体（一键应用到全站）</h4>' +
+            '<p class="admin-tip" id="adminFontGlobalSel">当前：继承默认</p>' +
+            '<div class="admin-font-grid" id="adminFontGlobalGrid"></div>' +
+          '</div>' +
+          '<div class="admin-font-section">' +
+            '<h4>选中元素字体（点击下方条目应用到当前选中文字）</h4>' +
+            '<p class="admin-tip" id="adminFontSelHint">请先点击页面中的文字/标题块，再回来选字体</p>' +
+            '<div class="admin-font-grid" id="adminFontSelGrid"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(fontModal);
+
     pwdInput = document.getElementById('adminPwd');
     loginBtn = document.getElementById('adminLoginBtn');
     loginView = document.getElementById('adminLoginView');
@@ -780,33 +812,68 @@
     saveTokenBtn = document.getElementById('adminSaveTokenBtn');
     enterEditBtn = document.getElementById('adminEnterEditBtn');
     resetBtn = document.getElementById('adminResetBtn');
+    fontBtn = document.getElementById('adminFontBtn');
 
     document.getElementById('adminModalClose').addEventListener('click', closeModal);
     modal.addEventListener('click', function(e){ if (e.target === modal) { closeModal(); } });
 
     loginBtn.addEventListener('click', function(){
-      var cur = getStoredHash();
-      if (sha256Hex(pwdInput.value || '') === cur) {
-        try { sessionStorage.setItem(SS_AUTH, '1'); } catch(e){}
-        closeModal();
-        pwdInput.value = '';
-        enterEdit();
-        alert('登录成功，已进入编辑模式');
-      } else {
-        alert('密码错误');
-      }
+      var p = pwdInput.value || '';
+      if (!p) { alert('请输入密码'); return; }
+      loginBtn.disabled = true;
+      loginBtn.textContent = '验证中…';
+      fetchConfig().then(function(cfg){
+        if (hashPassword(cfg.salt, p) === cfg.hash) {
+          try { sessionStorage.setItem(SS_AUTH, '1'); } catch(e){}
+          closeModal();
+          pwdInput.value = '';
+          enterEdit();
+          alert('登录成功，已进入编辑模式');
+        } else {
+          alert('密码错误');
+        }
+      }).catch(function(err){
+        alert('无法验证密码：' + err.message);
+      }).then(function(){
+        loginBtn.disabled = false;
+        loginBtn.textContent = '登 录';
+      });
     });
     pwdInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') { loginBtn.click(); } });
 
     changePwdBtn.addEventListener('click', function(){
-      var cur = getStoredHash();
-      if (sha256Hex(oldPwd.value || '') !== cur) { alert('旧密码错误'); return; }
+      var token = getToken();
+      if (!token) { alert('修改密码需要先保存 GitHub Token（用于更新仓库中的密码配置）'); openModal(); return; }
       var n1 = newPwd.value || '', n2 = newPwd2.value || '';
       if (n1.length < 4) { alert('新密码至少 4 位'); return; }
       if (n1 !== n2) { alert('两次输入的新密码不一致'); return; }
-      try { localStorage.setItem(LS_HASH, sha256Hex(n1)); } catch(e){ alert('保存失败（localStorage 不可用）'); return; }
-      oldPwd.value = ''; newPwd.value = ''; newPwd2.value = '';
-      alert('密码已修改');
+      changePwdBtn.disabled = true;
+      changePwdBtn.textContent = '提交中…';
+      fetchConfig().then(function(cfg){
+        if (hashPassword(cfg.salt, oldPwd.value || '') !== cfg.hash) { throw new Error('旧密码错误'); }
+        var newSalt = '';
+        var hexChars = '0123456789abcdef';
+        for (var i = 0; i < 16; i++) { newSalt += hexChars.charAt(Math.floor(Math.random() * 16)); }
+        var cfgContent = JSON.stringify({ version: 1, salt: newSalt, hash: hashPassword(newSalt, n1) });
+        var url = 'https://api.github.com/repos/loudeping/loudeping.github.io/contents/' + CFG_FILE;
+        return fetch(url, { method: 'GET', headers: githubHeaders(token) })
+          .then(function(r){ if (!r.ok) { throw new Error('GitHub 访问失败 (HTTP ' + r.status + ')，请检查 Token'); } return r.json(); })
+          .then(function(meta){
+            var body = { message: 'Update admin password', content: utf8ToBase64(cfgContent) };
+            if (meta.sha) { body.sha = meta.sha; }
+            return fetch(url, { method: 'PUT', headers: githubHeaders(token), body: JSON.stringify(body) });
+          })
+          .then(function(r){ if (!r.ok) { return r.json().then(function(e){ throw new Error((e && e.message) ? e.message : '提交失败 (HTTP ' + r.status + ')'); }); } });
+      })
+      .then(function(){
+        oldPwd.value = ''; newPwd.value = ''; newPwd2.value = '';
+        alert('密码已修改并写入网站仓库，全站立即生效（新密码下次登录时使用）');
+      })
+      .catch(function(err){ alert('修改密码失败：' + err.message); })
+      .then(function(){
+        changePwdBtn.disabled = false;
+        changePwdBtn.textContent = '修改密码';
+      });
     });
 
     saveTokenBtn.addEventListener('click', function(){
@@ -835,6 +902,10 @@
 
     document.getElementById('adminLinkModalClose').addEventListener('click', function(){ linkModal.hidden = true; });
     linkModal.addEventListener('click', function(e){ if (e.target === linkModal) { linkModal.hidden = true; } });
+
+    document.getElementById('adminFontModalClose').addEventListener('click', function(){ fontModal.hidden = true; });
+    fontModal.addEventListener('click', function(e){ if (e.target === fontModal) { fontModal.hidden = true; } });
+    fontBtn.addEventListener('click', openFontModal);
 
     linkBtn.addEventListener('click', showLinkModal);
     detailBtn.addEventListener('click', showDetailModal);
@@ -874,15 +945,18 @@
     if (link) { link.addEventListener('click', function(e){ e.preventDefault(); openModal(); }); }
   }
 
-  function getStoredHash(){
-    try {
-      var h = localStorage.getItem(LS_HASH);
-      if (h) { return h; }
-    } catch(e){}
-    var d = sha256Hex('lou2026');
-    try { localStorage.setItem(LS_HASH, d); } catch(e){}
-    return d;
+  /* ---------- password config (stored in repo admin-config.json, no default pwd) ---------- */
+  var CFG_FILE = 'admin-config.json';
+  var CFG_FALLBACK = 'https://raw.githubusercontent.com/loudeping/loudeping.github.io/master/admin-config.json';
+  function fetchConfig(){
+    return fetch(CFG_FILE, { cache: 'no-store' })
+      .then(function(r){ if (!r.ok) { throw new Error('config ' + r.status); } return r.json(); })
+      .catch(function(){
+        return fetch(CFG_FALLBACK, { cache: 'no-store' })
+          .then(function(r){ if (!r.ok) { throw new Error('无法获取密码配置（' + r.status + '）'); } return r.json(); });
+      });
   }
+  function hashPassword(salt, pwd){ return sha256Hex((salt || '') + pwd); }
 
   function isAuthed(){
     try { return sessionStorage.getItem(SS_AUTH) === '1'; } catch(e){}
@@ -1036,7 +1110,7 @@
   /* ---------- serialize (strip all editing UI) ---------- */
   function serializeHtml(){
     var clone = document.documentElement.cloneNode(true);
-    clone.querySelectorAll('.admin-handle, .admin-resize, #adminModal, #adminToolbar, #adminStatus, #adminLinkModal').forEach(function(el){ el.remove(); });
+    clone.querySelectorAll('.admin-handle, .admin-resize, #adminModal, #adminToolbar, #adminStatus, #adminLinkModal, #adminFontModal').forEach(function(el){ el.remove(); });
     clone.querySelectorAll('[contenteditable]').forEach(function(el){ el.removeAttribute('contenteditable'); el.removeAttribute('spellcheck'); });
     var cb = clone.querySelector('body');
     if (cb) { cb.classList.remove('admin-editing'); }
@@ -1163,6 +1237,120 @@
     unlinkBtn.disabled = !wrapped;
   }
 
+  /* ---------- font management (v3.1) ---------- */
+  var FONT_LIST = [
+    {cat:'中文', name:'思源黑体', family:'Noto Sans SC', file:'NotoSansSC-Regular.woff2', desc:'现代无衬线 · 正文标题皆宜'},
+    {cat:'中文', name:'思源宋体', family:'Noto Serif SC', file:'NotoSerifSC-Regular.woff2', desc:'经典宋体 · 正式诗文'},
+    {cat:'中文', name:'站酷快乐体', family:'ZCOOL KuaiLe', file:'ZCOOLKuaiLe-Regular.woff2', desc:'圆润活泼 · 亲和'},
+    {cat:'中文', name:'站酷庆科黄油体', family:'ZCOOL QingKe HuangYou', file:'ZCOOLQingKeHuangYou-Regular.woff2', desc:'厚重黄油感 · 标题'},
+    {cat:'中文', name:'站酷小薇LOGO体', family:'ZCOOL XiaoWei', file:'ZCOOLXiaoWei-Regular.woff2', desc:'优雅人文 · 标题'},
+    {cat:'中文', name:'霞鹜文楷', family:'LXGW WenKai', file:'LXGWWenKai-Regular.woff2', desc:'手写楷体 · 温润'},
+    {cat:'中文', name:'马善政楷书', family:'Ma Shan Zheng', file:'MaShanZheng-Regular.woff2', desc:'毛笔楷书 · 书法味'},
+    {cat:'中文', name:'龙藏体', family:'Long Cang', file:'LongCang-Regular.woff2', desc:'潇洒行书 · 诗意'},
+    {cat:'中文', name:'志莽行书', family:'Zhi Mang Xing', file:'ZhiMangXing-Regular.woff2', desc:'粗犷行草 · 气势'},
+    {cat:'中文', name:'流江毛笔草体', family:'Liu Jian Mao Cao', file:'LiuJianMaoCao-Regular.woff2', desc:'狂草笔意 · 张扬'},
+    {cat:'英文', name:'Inter', family:'Inter', file:'Inter-Regular.woff2', desc:'现代简洁 · 正文'},
+    {cat:'英文', name:'Playfair Display', family:'Playfair Display', file:'PlayfairDisplay-Regular.woff2', desc:'衬线优雅 · 标题'},
+    {cat:'英文', name:'Lora', family:'Lora', file:'Lora-Regular.woff2', desc:'经典书卷气'},
+    {cat:'英文', name:'Merriweather', family:'Merriweather', file:'Merriweather-Regular.woff2', desc:'报纸衬线 · 易读'},
+    {cat:'英文', name:'Montserrat', family:'Montserrat', file:'Montserrat-Regular.woff2', desc:'几何无衬线 · 现代'},
+    {cat:'英文', name:'Roboto', family:'Roboto', file:'Roboto-Regular.woff2', desc:'中性清爽 · 正文'},
+    {cat:'英文', name:'Open Sans', family:'Open Sans', file:'OpenSans-Regular.woff2', desc:'亲和易读 · 正文'},
+    {cat:'英文', name:'Oswald', family:'Oswald', file:'Oswald-Regular.woff2', desc:'窄体标题 · 有力'},
+    {cat:'英文', name:'Cinzel', family:'Cinzel', file:'Cinzel-Regular.woff2', desc:'古典罗马 · 庄严'},
+    {cat:'英文', name:'Dancing Script', family:'Dancing Script', file:'DancingScript-Regular.woff2', desc:'手写花体 · 灵动'}
+  ];
+  var FONT_FALLBACK_ZH = ',"STKaiti","KaiTi","Songti SC","SimSun",Georgia,serif';
+  var FONT_FALLBACK_EN = ',"Segoe UI",Arial,sans-serif';
+
+  function fontFaceName(f){ return "'" + f.family + "'"; }
+
+  function injectFontFaces(){
+    if (document.getElementById('adminFontFaces')) { return; }
+    var css = FONT_LIST.map(function(f){
+      return "@font-face{font-family:'" + f.family + "';src:url('fonts/" + f.file + "') format('woff2');font-weight:400;font-style:normal;font-display:swap;}";
+    }).join('\n');
+    var st = document.createElement('style');
+    st.id = 'adminFontFaces';
+    st.textContent = css;
+    document.head.appendChild(st);
+  }
+
+  function fontGridButton(f){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'admin-font-item';
+    b.style.fontFamily = "'" + f.family + "',serif";
+    b.innerHTML = '<span>' + f.name + ' · ' + f.family + '</span><small>' + f.desc + '</small>';
+    return b;
+  }
+
+  function openFontModal(){
+    injectFontFaces();
+    var globalGrid = document.getElementById('adminFontGlobalGrid');
+    if (!globalGrid.dataset.built) {
+      globalGrid.dataset.built = '1';
+      var gDef = document.createElement('button');
+      gDef.type = 'button';
+      gDef.className = 'admin-font-item';
+      gDef.innerHTML = '<span>恢复默认</span><small>回到本站原始字体</small>';
+      gDef.addEventListener('click', function(){ applyGlobalFont(''); });
+      globalGrid.appendChild(gDef);
+      FONT_LIST.forEach(function(f){
+        var b = fontGridButton(f);
+        b.addEventListener('click', function(){ applyGlobalFont(f.family + FONT_FALLBACK_ZH + FONT_FALLBACK_EN); });
+        globalGrid.appendChild(b);
+      });
+
+      var selGrid = document.getElementById('adminFontSelGrid');
+      var sDef = document.createElement('button');
+      sDef.type = 'button';
+      sDef.className = 'admin-font-item';
+      sDef.innerHTML = '<span>恢复继承</span><small>取消该元素的个性字体</small>';
+      sDef.addEventListener('click', function(){ applySelFont(''); });
+      selGrid.appendChild(sDef);
+      FONT_LIST.forEach(function(f){
+        var b = fontGridButton(f);
+        b.addEventListener('click', function(){ applySelFont(f.family + FONT_FALLBACK_ZH + FONT_FALLBACK_EN); });
+        selGrid.appendChild(b);
+      });
+    }
+    refreshFontModalState();
+    fontModal.hidden = false;
+  }
+
+  function refreshFontModalState(){
+    var cur = (document.body.style.fontFamily || '').split(',')[0].replace(/['"]/g, '');
+    var gSel = document.getElementById('adminFontGlobalSel');
+    gSel.textContent = cur ? ('当前：' + cur) : '当前：继承默认';
+    var gl = document.getElementById('adminFontGlobalGrid');
+    gl.querySelectorAll('.admin-font-item').forEach(function(b){
+      b.classList.remove('admin-font-active');
+      var txt = b.querySelector('span').textContent;
+      if (txt.indexOf(cur) !== -1 && cur) { b.classList.add('admin-font-active'); }
+    });
+    var sel = getSelected();
+    var sHint = document.getElementById('adminFontSelHint');
+    if (sel) {
+      var sc = (sel.style.fontFamily || '').split(',')[0].replace(/['"]/g, '');
+      sHint.textContent = '当前选中：' + (sel.className || sel.tagName) + (sc ? '（字体：' + sc + '）' : '（继承默认）');
+    } else {
+      sHint.textContent = '请先点击页面中的文字/标题块，再回来选字体';
+    }
+  }
+
+  function applyGlobalFont(family){
+    document.body.style.fontFamily = family;
+    refreshFontModalState();
+  }
+
+  function applySelFont(family){
+    var sel = getSelected();
+    if (!sel) { alert('请先在页面中点击要修改的文字/标题块'); return; }
+    sel.style.fontFamily = family;
+    refreshFontModalState();
+  }
+
   function showLinkModal(){
     var sel = getSelected();
     if (!sel) { return; }
@@ -1287,6 +1475,10 @@
       '.admin-field{ margin-top:16px; border-top:1px solid var(--line); padding-top:14px; }',
       '.admin-field label{ display:block; font-size:13px; color:var(--ink-soft); margin-bottom:2px; letter-spacing:.05em; }',
       '.admin-token-note{ font-size:12px; color:var(--ink-soft); margin-top:4px; }',
+      '.admin-font-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }',
+      '.admin-font-item{ text-align:left; font-size:14px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); cursor:pointer; line-height:1.3; }',
+      '.admin-font-item:hover{ border-color:var(--vermilion); color:var(--vermilion); }',
+      '.admin-font-item small{ display:block; font-size:11px; color:var(--ink-soft); margin-top:2px; }',
       '.admin-toolbar{ position:fixed; right:18px; bottom:18px; z-index:1100; display:flex; gap:8px; background:#262220; padding:10px 14px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); flex-wrap:wrap; max-width:calc(100vw - 36px); }',
       '.admin-toolbar[hidden]{ display:none; }',
       '.admin-toolbar button{ font-family:inherit; font-size:13px; color:#f6f1e7; background:transparent; border:1px solid rgba(246,241,231,.4); border-radius:8px; padding:8px 14px; cursor:pointer; letter-spacing:1px; }',
@@ -1301,6 +1493,8 @@
       '(function(){',
       "'use strict';",
       "var LS_HASH='lou_detail_hash', LS_TOKEN='lou_detail_token', SS_AUTH='lou_detail_authed';",
+      "var CFG_FILE='admin-config.json';",
+      "var CFG_FALLBACK='https://raw.githubusercontent.com/loudeping/loudeping.github.io/master/admin-config.json';",
       "var FILE=document.documentElement.getAttribute('data-file')||'index.html';",
       sha256.toString(),
       "function sha256Hex(str){ return sha256(encodeURIComponent(str)); }",
@@ -1323,7 +1517,7 @@
       "    '</div>';",
       "  document.body.appendChild(modal);",
       "  toolbar=document.createElement('div'); toolbar.id='adminToolbar'; toolbar.className='admin-toolbar'; toolbar.hidden=true;",
-      "  toolbar.innerHTML='<button type=\"button\" id=\"adminSaveGhBtn\">保存到 GitHub</button><button type=\"button\" id=\"adminDownloadBtn\">下载 HTML</button><button type=\"button\" id=\"adminExitBtn\">退出编辑</button>';",
+      "  toolbar.innerHTML='<button type=\"button\" id=\"adminFontBtn\">字体</button><button type=\"button\" id=\"adminSaveGhBtn\">保存到 GitHub</button><button type=\"button\" id=\"adminDownloadBtn\">下载 HTML</button><button type=\"button\" id=\"adminExitBtn\">退出编辑</button>';",
       "  document.body.appendChild(toolbar);",
       "  statusEl=document.createElement('div'); statusEl.id='adminStatus'; statusEl.className='admin-status'; statusEl.textContent='编辑模式'; statusEl.hidden=true;",
       "  document.body.appendChild(statusEl);",
@@ -1335,19 +1529,34 @@
       "  document.getElementById('adminModalClose').addEventListener('click', function(){ modal.hidden=true; });",
       "  modal.addEventListener('click', function(e){ if (e.target===modal) { modal.hidden=true; } });",
       "  loginBtn.addEventListener('click', function(){",
-      "    var cur=getStoredHash();",
-      "    if (sha256Hex(pwdInput.value||'')===cur) { try { sessionStorage.setItem(SS_AUTH,'1'); } catch(e){} modal.hidden=true; pwdInput.value=''; enterEdit(); alert('登录成功，已进入编辑模式'); }",
-      "    else { alert('密码错误'); }",
+      "    var p=pwdInput.value||''; if (!p) { alert('请输入密码'); return; }",
+      "    loginBtn.disabled=true; loginBtn.textContent='验证中…';",
+      "    fetchConfig().then(function(cfg){",
+      "      if (hashPassword(cfg.salt,p)===cfg.hash) { try { sessionStorage.setItem(SS_AUTH,'1'); } catch(e){} modal.hidden=true; pwdInput.value=''; enterEdit(); alert('登录成功，已进入编辑模式'); }",
+      "      else { alert('密码错误'); }",
+      "    }).catch(function(err){ alert('无法验证密码：'+err.message); }).then(function(){ loginBtn.disabled=false; loginBtn.textContent='登 录'; });",
       "  });",
       "  pwdInput.addEventListener('keydown', function(e){ if (e.key==='Enter') { loginBtn.click(); } });",
       "  changePwdBtn.addEventListener('click', function(){",
-      "    var cur=getStoredHash();",
-      "    if (sha256Hex(oldPwd.value||'')!==cur) { alert('旧密码错误'); return; }",
+      "    var token=''; try { token=localStorage.getItem(LS_TOKEN)||''; } catch(e){}",
+      "    if (!token) { alert('修改密码需要先保存 GitHub Token（用于更新仓库中的密码配置）'); openModal(); return; }",
       "    var n1=newPwd.value||'', n2=newPwd2.value||'';",
       "    if (n1.length<4) { alert('新密码至少 4 位'); return; }",
       "    if (n1!==n2) { alert('两次输入的新密码不一致'); return; }",
-      "    try { localStorage.setItem(LS_HASH, sha256Hex(n1)); } catch(e){ alert('保存失败（localStorage 不可用）'); return; }",
-      "    oldPwd.value=''; newPwd.value=''; newPwd2.value=''; alert('密码已修改');",
+      "    changePwdBtn.disabled=true; changePwdBtn.textContent='提交中…';",
+      "    fetchConfig().then(function(cfg){",
+      "      if (hashPassword(cfg.salt,oldPwd.value||'')!==cfg.hash) { throw new Error('旧密码错误'); }",
+      "      var newSalt=''; var hexChars='0123456789abcdef'; for (var i=0;i<16;i++){ newSalt+=hexChars.charAt(Math.floor(Math.random()*16)); }",
+      "      var cfgContent=JSON.stringify({version:1,salt:newSalt,hash:hashPassword(newSalt,n1)});",
+      "      var url='https://api.github.com/repos/loudeping/loudeping.github.io/contents/'+CFG_FILE;",
+      "      var headers={ 'Authorization':'token '+token, 'Accept':'application/vnd.github+json' };",
+      "      return fetch(url,{ method:'GET', headers:headers })",
+      "        .then(function(r){ if (!r.ok) { throw new Error('GitHub 访问失败 (HTTP '+r.status+')，请检查 Token'); } return r.json(); })",
+      "        .then(function(meta){ var body={ message:'Update admin password', content:utf8ToBase64(cfgContent) }; if (meta.sha) { body.sha=meta.sha; } return fetch(url,{ method:'PUT', headers:headers, body:JSON.stringify(body) }); })",
+      "        .then(function(r){ if (!r.ok) { return r.json().then(function(e){ throw new Error((e&&e.message)?e.message:'提交失败 (HTTP '+r.status+')'); }); } });",
+      "    }).then(function(){ oldPwd.value=''; newPwd.value=''; newPwd2.value=''; alert('密码已修改并写入网站仓库，全站立即生效'); })",
+      "      .catch(function(err){ alert('修改密码失败：'+err.message); })",
+      "      .then(function(){ changePwdBtn.disabled=false; changePwdBtn.textContent='修改密码'; });",
       "  });",
       "  saveTokenBtn.addEventListener('click', function(){",
       "    var t=(tokenInput.value||'').trim();",
@@ -1356,14 +1565,48 @@
       "  });",
       "  enterEditBtn.addEventListener('click', function(){ modal.hidden=true; enterEdit(); });",
       "  document.getElementById('adminSaveGhBtn').addEventListener('click', saveToGithub);",
+      "  var fontModal=document.createElement('div'); fontModal.id='adminFontModal'; fontModal.className='admin-modal'; fontModal.hidden=true;",
+      "  fontModal.innerHTML='<div class=\"admin-modal-box\"><div class=\"admin-modal-head\"><span>详情页字体</span><button type=\"button\" class=\"admin-modal-close\" id=\"adminFontModalClose\">×</button></div><div class=\"admin-modal-body\">' +",
+      "    '<div class=\"admin-field\"><label>整页字体（应用到详情页全部文字）</label><div class=\"admin-font-grid\" id=\"adminDetailFontGrid\"></div></div>' +",
+      "    '<div class=\"admin-field\"><label>选中文字字体（先选中详情页文字，再点下方条目）</label><div class=\"admin-font-grid\" id=\"adminDetailSelGrid\"></div></div>' +",
+      "    '</div></div>';",
+      "  document.body.appendChild(fontModal);",
+      "  document.getElementById('adminFontModalClose').addEventListener('click', function(){ fontModal.hidden=true; });",
+      "  fontModal.addEventListener('click', function(e){ if (e.target===fontModal) { fontModal.hidden=true; } });",
+      "  document.getElementById('adminFontBtn').addEventListener('click', function(){ buildDetailFontGrid(); fontModal.hidden=false; });",
       "  document.getElementById('adminDownloadBtn').addEventListener('click', downloadHtml);",
       "  document.getElementById('adminExitBtn').addEventListener('click', exitEdit);",
       "}",
-      "function getStoredHash(){",
-      "  try { var h=localStorage.getItem(LS_HASH); if (h) { return h; } } catch(e){}",
-      "  var d=sha256Hex('lou2026');",
-      "  try { localStorage.setItem(LS_HASH, d); } catch(e){}",
-      "  return d;",
+      "function fetchConfig(){",
+      "  return fetch(CFG_FILE,{ cache:'no-store' }).then(function(r){ if (!r.ok) { throw new Error('config '+r.status); } return r.json(); })",
+      "    .catch(function(){ return fetch(CFG_FALLBACK,{ cache:'no-store' }).then(function(r){ if (!r.ok) { throw new Error('无法获取密码配置（'+r.status+'）'); } return r.json(); }); });",
+      "}",
+      "function hashPassword(salt,pwd){ return sha256Hex((salt||'')+pwd); }",
+      "var FONT_LIST=[",
+      "  {cat:'中文',name:'思源黑体',family:'Noto Sans SC',file:'NotoSansSC-Regular.woff2',desc:'现代无衬线'},{cat:'中文',name:'思源宋体',family:'Noto Serif SC',file:'NotoSerifSC-Regular.woff2',desc:'经典宋体'},",
+      "  {cat:'中文',name:'站酷快乐体',family:'ZCOOL KuaiLe',file:'ZCOOLKuaiLe-Regular.woff2',desc:'圆润活泼'},{cat:'中文',name:'站酷庆科黄油体',family:'ZCOOL QingKe HuangYou',file:'ZCOOLQingKeHuangYou-Regular.woff2',desc:'厚重标题'},",
+      "  {cat:'中文',name:'站酷小薇LOGO体',family:'ZCOOL XiaoWei',file:'ZCOOLXiaoWei-Regular.woff2',desc:'优雅人文'},{cat:'中文',name:'霞鹜文楷',family:'LXGW WenKai',file:'LXGWWenKai-Regular.woff2',desc:'手写楷体'},",
+      "  {cat:'中文',name:'马善政楷书',family:'Ma Shan Zheng',file:'MaShanZheng-Regular.woff2',desc:'毛笔楷书'},{cat:'中文',name:'龙藏体',family:'Long Cang',file:'LongCang-Regular.woff2',desc:'潇洒行书'},",
+      "  {cat:'中文',name:'志莽行书',family:'Zhi Mang Xing',file:'ZhiMangXing-Regular.woff2',desc:'粗犷行草'},{cat:'中文',name:'流江毛笔草体',family:'Liu Jian Mao Cao',file:'LiuJianMaoCao-Regular.woff2',desc:'狂草笔意'},",
+      "  {cat:'英文',name:'Inter',family:'Inter',file:'Inter-Regular.woff2',desc:'现代简洁'},{cat:'英文',name:'Playfair Display',family:'Playfair Display',file:'PlayfairDisplay-Regular.woff2',desc:'优雅衬线'},",
+      "  {cat:'英文',name:'Lora',family:'Lora',file:'Lora-Regular.woff2',desc:'经典书卷'},{cat:'英文',name:'Merriweather',family:'Merriweather',file:'Merriweather-Regular.woff2',desc:'报纸衬线'},",
+      "  {cat:'英文',name:'Montserrat',family:'Montserrat',file:'Montserrat-Regular.woff2',desc:'几何无衬线'},{cat:'英文',name:'Roboto',family:'Roboto',file:'Roboto-Regular.woff2',desc:'中性清爽'},",
+      "  {cat:'英文',name:'Open Sans',family:'Open Sans',file:'OpenSans-Regular.woff2',desc:'亲和易读'},{cat:'英文',name:'Oswald',family:'Oswald',file:'Oswald-Regular.woff2',desc:'窄体标题'},",
+      "  {cat:'英文',name:'Cinzel',family:'Cinzel',file:'Cinzel-Regular.woff2',desc:'古典罗马'},{cat:'英文',name:'Dancing Script',family:'Dancing Script',file:'DancingScript-Regular.woff2',desc:'手写花体'}",
+      "  ];",
+      "function injectFontFaces(){ if (document.getElementById('adminFontFaces')) { return; } var css=FONT_LIST.map(function(f){ return \"@font-face{font-family:'\"+f.family+\"';src:url('fonts/'+f.file+') format('woff2');font-weight:400;font-style:normal;font-display:swap;}\"; }).join('\\n'); var st=document.createElement('style'); st.id='adminFontFaces'; st.textContent=css; document.head.appendChild(st); }",
+      "function buildDetailFontGrid(){",
+      "  injectFontFaces();",
+      "  var g=document.getElementById('adminDetailFontGrid');",
+      "  if (!g.dataset.built) { g.dataset.built='1';",
+      "    var d=document.createElement('button'); d.type='button'; d.className='admin-font-item'; d.innerHTML='<span>恢复默认</span><small>回到原始字体</small>'; d.addEventListener('click', function(){ var b=document.getElementById('detailBody'); if (b) { b.style.fontFamily=''; } }); g.appendChild(d);",
+      "    FONT_LIST.forEach(function(f){ var b=document.createElement('button'); b.type='button'; b.className='admin-font-item'; b.style.fontFamily='\"'+f.family+'\",serif'; b.innerHTML='<span>'+f.name+' · '+f.family+'</span><small>'+f.desc+'</small>'; b.addEventListener('click', function(){ var bd=document.getElementById('detailBody'); if (bd) { bd.style.fontFamily='\"'+f.family+'\"'+',\"STKaiti\",\"KaiTi\",\"Songti SC\",\"SimSun\",Georgia,serif'; } }); g.appendChild(b); });",
+      "  }",
+      "  var s=document.getElementById('adminDetailSelGrid');",
+      "  if (!s.dataset.built) { s.dataset.built='1';",
+      "    var d2=document.createElement('button'); d2.type='button'; d2.className='admin-font-item'; d2.innerHTML='<span>恢复继承</span><small>取消选中文字个性字体</small>'; d2.addEventListener('click', function(){ document.execCommand('fontName', false, ''); }); s.appendChild(d2);",
+      "    FONT_LIST.forEach(function(f){ var b=document.createElement('button'); b.type='button'; b.className='admin-font-item'; b.style.fontFamily='\"'+f.family+'\",serif'; b.innerHTML='<span>'+f.name+' · '+f.family+'</span><small>'+f.desc+'</small>'; b.addEventListener('click', function(){ document.execCommand('fontName', false, '\"'+f.family+'\"'); }); s.appendChild(b); });",
+      "  }",
       "}",
       "function isAuthed(){ try { return sessionStorage.getItem(SS_AUTH)==='1'; } catch(e){} return false; }",
       "function openModal(){",
@@ -1404,7 +1647,7 @@
       "});",
       "function serializeHtml(){",
       "  var clone=document.documentElement.cloneNode(true);",
-      "  clone.querySelectorAll('#adminModal,#adminToolbar,#adminStatus').forEach(function(el){ el.remove(); });",
+      "  clone.querySelectorAll('#adminModal,#adminToolbar,#adminStatus,#adminFontModal').forEach(function(el){ el.remove(); });",
       "  clone.querySelectorAll('[contenteditable]').forEach(function(el){ el.removeAttribute('contenteditable'); el.removeAttribute('spellcheck'); });",
       "  var cb=clone.querySelector('body'); if (cb) { cb.classList.remove('admin-editing'); }",
       "  clone.querySelectorAll('.admin-img').forEach(function(el){ el.classList.remove('admin-img'); });",
